@@ -73,3 +73,9 @@ RUN useradd -m notRoot
 
 # Setup the libxml stuff for video
 RUN cpan install XML::LibXML
+
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+ENTRYPOINT ["/entrypoint.sh"]
+
+RUN mkdir -p /root/work/rdk
