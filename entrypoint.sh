@@ -1,22 +1,16 @@
 #!/bin/bash
 set -e
 
-# Using `-v $HOME/.ssh:/root/.ssh:ro` produce permissions error while in the container
-# when working from Linux and maybe from Windows.
-# To prevent that we offer the strategy to mount the `.ssh` folder with
-# `-v $HOME/.ssh:/.ssh:ro` thus this entrypoint will automatically handle problem.
+if [ "$USER_ID" != "0" ] && [ "$GROUP_ID" != "0" ]; then
+    cp -a /.ssh /home/notRoot/.ssh
 
-if [[ -d /.ssh ]]; then
+    # Some newer versions have this keyword, but the older ones don't
+    sed -i '/RequiredRSASize/Id' /home/notRoot/.ssh/config
 
-  cp -R /.ssh /root/.ssh
-  chmod 700 /root/.ssh
-  chmod 600 /root/.ssh/*
-  if compgen -G "/.ssh/*.pub" > /dev/null; then
-    chmod 600 /root/.ssh/*.pub
-  fi
-  chmod 644 /root/.ssh/known_hosts
+    usermod -u $USER_ID notRoot 2>/dev/null
+    groupmod -g $GROUP_ID notRoot
 
-  sed -i '/RequiredRSASize/Id' /root/.ssh/config
+    exec gosu notRoot "$@"
+else
+    exec "$@"
 fi
-
-exec "$@"

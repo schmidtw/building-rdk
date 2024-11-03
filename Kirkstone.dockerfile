@@ -1,5 +1,9 @@
 FROM ubuntu:20.04
 
+# Default to root
+ENV USER_ID=0
+ENV GROUP_ID=0
+
 RUN apt-get -y update
 
 # Setup the locales first
@@ -26,6 +30,7 @@ RUN apt-get -y install \
     git \
     git-core \
     git-lfs \
+    gosu \
     iputils-ping  \
     make \
     ninja-build \
@@ -62,7 +67,7 @@ RUN apt-get -y install \
     pylint3
 
 # Install repo
-RUN curl http://commondatastorage.googleapis.com/git-repo-downloads/repo > /usr/bin/repo
+COPY repo /usr/bin/repo
 RUN chmod a+x /usr/bin/repo
 RUN ln -s /usr/bin/python2.7 /usr/bin/python
 
@@ -71,11 +76,12 @@ RUN echo "dash dash/sh boolean false" | debconf-set-selections
 RUN DEBIAN_FRONTEND=noninteractive dpkg-reconfigure dash
 RUN useradd -m notRoot
 
+RUN mkdir -p /home/notRoot/work/rdk
+RUN chown -R notRoot:notRoot /home/notRoot
+
 # Setup the libxml stuff for video
-RUN cpan install XML::LibXML
+RUN su notRoot -c "cpan install XML::LibXML"
 
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 ENTRYPOINT ["/entrypoint.sh"]
-
-RUN mkdir -p /root/work/rdk

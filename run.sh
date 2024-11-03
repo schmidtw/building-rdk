@@ -1,55 +1,63 @@
 #!/bin/bash
 
-gitconfig=~/.gitconfig
-gitconfigrdk=~/.gitconfig-rdk
+gitconfig=~/.gitconfig*
 netrc=~/.netrc
 sshdir=~/.ssh
+workingdirectory=/home/notRoot/work/rdk
 
 flavor=dunfell
 
-if [ -d ".ccache" ]; then
-    echo ".ccache directory exists locally, using it."
-else
-    echo "creating .ccache directory."
+wdcli="-w ${workingdirectory}"
+
+interactive=
+if [[ -n "${INTERACTIVE_MODE+x}" ]]; then
+    interactive="-it"
+    wdcli=
+fi
+
+if [ ! -d ".ccache" ]; then
+    echo "creating a local .ccache directory."
     mkdir -p .ccache
 fi
 
-if [ -d ".repo" ]; then
-    echo ".repo directory exists locally, using it."
-else
-    echo "creating .repo directory."
+if [ ! -d ".repo" ]; then
+    echo "creating a local .repo directory."
 fi
 
-if [ -d "build" ]; then
-    echo "build directory exists locally, using it."
-else
-    echo "creating build directory."
+if [ ! -d "build" ]; then
+    echo "creating a local build directory."
     mkdir -p build
 fi
 
-echo "Using ${gitconfig} for .gitconfig file."
-echo "Using ${netrc} for .netrc file."
-echo "Using ${sshdir} for the .ssh dir."
+# Loop over each file matching the pattern
+gitconfigvolumes=""
+for file in $gitconfig; do
+  # Check if the file exists to avoid errors with non-matching patterns
+  if [[ -f "$file" ]]; then
+    # Extract the filename from the full path
+    filename=$(basename "$file")
+    # Add the volume mount string to volumes
+    gitconfigvolumes+="-v ${file}:/root/${filename}:ro "
+    echo "~/${filename} --> ${file} (read-only)"
+  fi
+done
 
-#
-#docker run -ti \
-#    -v ${gitconfig}:/root/.gitconfig \
-#    -v ${netrc}:/root/.netrc \
-#    -v ${sshdir}:/root/.ssh \
-#    -v ./build:/root/build \
-#    -v ./.ccache:/root/.ccache \
-#    --rm yocto.${flavor} /bin/bash
+echo "~/.netrc --> ${netrc} (read-only)"
+echo "~/.ssh --> ${sshdir} (read-only)"
+echo ".ccache --> ./.ccache"
+echo ".repo --> ./.repo"
+echo "build --> ./build"
 
-docker run --rm \
-    -v /run/user/$(id -u)/ssh-auth.sock:/ssh-auth.sock \
-    -v ${gitconfig}:/root/.gitconfig:ro \
-    -v ${gitconfigrdk}:/root/.gitconfig-rdk:ro \
+#set -x
+
+docker run ${interactive} --rm \
+    -e USER_ID=$(id -u) -e GROUP_ID=$(id -g) \
+    ${gitconfigvolumes} \
     -v ${netrc}:/root/.netrc:ro \
     -v ${sshdir}:/.ssh:ro \
-    -v ./.ccache:/root/.ccache \
-    -v ./.repo:/root/.repo \
-    -e SSH_AUTH_SOCK=/ssh-auth.sock \
-    -v ./build:/root/build \
-    -w /root/work/rdk \
+    -v ./.ccache:${workingdirectory}/.ccache \
+    -v ./.repo:${workingdirectory}/.repo \
+    -v ./build:${workingdirectory}/build \
+    ${wdcli} \
     yocto.${flavor} \
     $@
