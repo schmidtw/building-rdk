@@ -3,7 +3,8 @@
 gitconfig=~/.gitconfig*
 netrc=~/.netrc
 sshdir=~/.ssh
-workingdirectory=/home/notRoot/work/rdk
+userdirectory=/home/notRoot
+workingdirectory=${userdirectory}/work/rdk
 
 flavor=dunfell
 
@@ -37,7 +38,7 @@ for file in $gitconfig; do
     # Extract the filename from the full path
     filename=$(basename "$file")
     # Add the volume mount string to volumes
-    gitconfigvolumes+="-v ${file}:/root/${filename}:ro "
+    gitconfigvolumes+="-v ${file}:${userdirectory}/${filename}:ro "
     echo "~/${filename} --> ${file} (read-only)"
   fi
 done
@@ -53,8 +54,8 @@ echo "build --> ./build"
 docker run ${interactive} --rm \
     -e USER_ID=$(id -u) -e GROUP_ID=$(id -g) \
     ${gitconfigvolumes} \
-    -v ${netrc}:/root/.netrc:ro \
     -v ${sshdir}:/.ssh:ro \
+    -v ${netrc}:${userdirectory}/.netrc:ro \
     -v ./.ccache:${workingdirectory}/.ccache \
     -v ./.repo:${workingdirectory}/.repo \
     -v ./build:${workingdirectory}/build \
